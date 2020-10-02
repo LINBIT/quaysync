@@ -52,7 +52,7 @@ run() {
 	src_manifests=""
 	for arch in $(echo "$archs" | tr ',' '\n'); do
 		src="${src_registry}/${arch}/${project}:${tag}"
-		docker pull ${src}
+		docker pull ${src} &>/dev/null
 		cur_hash=$(docker images --format '{{.ID}}' "$src")
 		old_hash=${img_hashes[$src]}
 		[[ $cur_hash == $old_hash ]] && continue
