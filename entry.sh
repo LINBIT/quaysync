@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -38,6 +38,8 @@ src_registry="$1"
 dst_registry="$2"
 project="$3"
 
+declare -A img_hashes
+
 # variables passed by globals, function just there to ease stdout capturing
 run() {
 	if [ "$dryrun" = 'n' ]; then
@@ -50,14 +52,21 @@ run() {
 	src_manifests=""
 	for arch in $(echo "$archs" | tr ',' '\n'); do
 		src="${src_registry}/${arch}/${project}:${tag}"
-		echo "docker pull ${src}"
+		docker pull ${src}
+		cur_hash=$(docker images --format '{{.ID}}' "$src")
+		old_hash=${img_hashes[$src]}
+		[[ $cur_hash == $old_hash ]] && continue
+
+		img_hashes[$src]=$cur_hash
 		dst="${dst_registry}/${project}-${arch}:${tag}"
 		echo "docker tag ${src} ${dst}"
 		echo "docker push $dst"
 		src_manifests="${src_manifests} ${dst}"
 	done
-	echo "docker manifest create --insecure --amend ${dst_registry}/${project}:${tag} ${src_manifests}"
-	echo "docker manifest push --insecure ${dst_registry}/${project}:${tag}"
+	if [ -n "$src_manifests" ]; then
+		echo "docker manifest create --insecure --amend ${dst_registry}/${project}:${tag} ${src_manifests}"
+		echo "docker manifest push --insecure ${dst_registry}/${project}:${tag}"
+	fi
 }
 
 while true; do
